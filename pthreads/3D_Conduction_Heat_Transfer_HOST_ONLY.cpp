@@ -11,6 +11,15 @@ int num_threads = 4; // number of threads to use
 
 pthread_barrier_t barrier;
 
+void* init_conditions(void* arg) {
+    thread_data* data = static_cast<thread_data*>(arg);
+    for (int i = data->start; i < data->end; i++) {
+        data->u[i] = 0.0;
+        data->u_new[i] = 0.0;
+    }
+    return NULL;
+}
+
 void* set_boundary_conditions(void* args) {
     int thread_id = *((int*) args);
     int i_start = (nx/num_threads) * thread_id;
@@ -35,17 +44,33 @@ void* set_boundary_conditions(void* args) {
 int main() {
     u = (float*) malloc(n*sizeof(float));
     u_new = (float*) malloc(n*sizeof(float));
-    for (int i=0; i<n; i++) {
-        u[i] = 0.0;
-        u_new[i] = 0.0;
-    }
 
     pthread_t threads[num_threads];
     int thread_ids[num_threads];
     pthread_barrier_init(&barrier, NULL, num_threads);
+    
+    for (int i=0; i<num_threads; i++) {
+        thread_ids[i] = i;
+        thread_args[i].u = u;
+        thread_args[i].u_new = u_new;
+        thread_args[i].start = i * chunk_size;
+        thread_args[i].end = (i == num_threads - 1) ? n : (i + 1) * chunk_size;
+        pthread_create(&threads[i], NULL, set_boundary_conditions, (void*) &thread_ids[i]);
+    }
+
+    for (int i=0; i<num_threads; i++) {
+        pthread_join(threads[i], NULL);
+    }
 
     for (int i=0; i<num_threads; i++) {
         thread_ids[i] = i;
+        thread_args[i].u = u;
+        thread_args[i].u_new = u_new;
+        thread_args[i].nx = nx;
+        thread_args[i].ny = ny;
+        thread_args[i].nz = nz;
+        thread_args[i].start = i * chunk_size;
+        thread_args[i].end = (i == num_threads - 1) ? nx : (i + 1) * chunk_size;
         pthread_create(&threads[i], NULL, set_boundary_conditions, (void*) &thread_ids[i]);
     }
 
