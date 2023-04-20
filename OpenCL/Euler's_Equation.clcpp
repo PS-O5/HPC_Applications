@@ -1,0 +1,168 @@
+#include <iostream>
+#include <vector>
+#include <CL/cl.hpp>
+
+using namespace std;
+
+// Define the grid parameters
+const int Nx = 128;
+const int Ny = 128;
+const int Nz = 128;
+const int N = Nx * Ny * Nz;
+
+// Define the fluid parameters
+const float gamma = 1.4;
+const float dx = 0.01;
+const float dy = 0.01;
+const float dz = 0.01;
+const float dt = 0.0001;
+const float tmax = 0.1;
+
+// Define the OpenCL kernel source code
+const char* kernelSource = R"CLC(
+    #pragma OPENCL EXTENSION cl_khr_fp64 : enable
+
+    __kernel void euler(__global double4* U, const double dx, const double dy, const double dz, const double dt, const double gamma, const int Nx, const int Ny, const int Nz)
+    {
+        // Get the global ID
+        int i = get_global_id(0);
+        int j = get_global_id(1);
+        int k = get_global_id(2);
+
+        // Compute the index into the U array
+        int idx = i + j*Nx + k*Nx*Ny;
+
+        // Compute the fluxes
+        double4 Fx_p = 0.5 * (U[idx+1] + U[idx]) * (U[idx+1].x + U[idx].x);
+        double4 Fx_m = 0.5 * (U[idx] + U[idx-1]) * (U[idx].x + U[idx-1].x);
+        double4 Fy_p = 0.5 * (U[idx+Nx] + U[idx]) * (U[idx+Nx].y + U[idx].y);
+        double4 Fy_m = 0.5 * (U[idx] + U[idx-Nx]) * (U[idx].y + U[idx-Nx].y);
+        double4 Fz_p = 0.5 * (U[idx+Nx*Ny] + U[idx]) * (U[idx+Nx*Ny].z + U[idx].z);
+        double4 Fz_m = 0.5 * (U[idx] + U[idx-Nx*Ny]) * (U[idx].z + U[idx-Nx*Ny].z);
+
+        // Compute the new values of U
+        U[idx] -= (dt/dx) * (Fx_p - Fx_m);
+        U[idx] -= (dt/dy) * (Fy_p - Fy_m);
+        U[idx] -= (dt/dz) * (Fz_p - Fz_m);
+
+        // Compute the pressure and sound speed
+        double rho = U[idx].x;
+        double u = U[idx].y / rho;
+        double v = U[idx].z / rho;
+        double w = U[idx].w / rho;
+        double E = U[idx].w;
+        double p = (gamma - 1.0) * (E - 0.5 * rho * (u*u + v*v + w*w));
+        double c = sqrt(gamma * p / rho);
+
+        // Apply the boundary conditions
+        if (i == 0 || i == Nx-1 || j == 0 || j == Ny-1 || k == 0 || k == Nz-1)
+        {
+            U[idx].y = 0.0;
+            U[idx].z = 0.0;
+            U[idx].w = p / (gamma - 1.0)
+        }
+
+    // Apply the viscosity
+    double4 dUdx = (U[idx+1] - U[idx-1]) / (2.0*dx);
+    double4 dUdy = (U[idx+Nx] - U[idx-Nx]) / (2.0*dy);
+    double4 dUdz = (U[idx+Nx*Ny] - U[idx-Nx*Ny]) / (2.0*dz);
+    double4 gradU = (dUdx + dUdy + dUdz) / 3.0;
+    double4 LapU = (U[idx+1] + U[idx-1] + U[idx+Nx] + U[idx-Nx] + U[idx+Nx*Ny] + U[idx-Nx*Ny] - 6.0*U[idx]) / (dx*dx + dy*dy + dz*dz);
+    double4 visc = 2.0 * LapU - 0.5 * gradU;
+
+    U[idx] += (dt/(rho*dx*dx)) * visc;
+    U[idx] += (dt/(rho*dy*dy)) * visc;
+    U[idx] += (dt/(rho*dz*dz)) * visc;
+}
+
+)CLC";
+
+int main()
+{
+try
+{
+    // Get the available OpenCL platforms
+    vectorcl::Platform platforms;
+    cl::Platform::get(&platforms);
+    // Get the available OpenCL devices
+    vector<cl::Device> devices;
+    platforms[0].getDevices(CL_DEVICE_TYPE_GPU, &devices);
+
+    // Create an OpenCL context and command queue
+    cl::Context context(devices);
+    cl::CommandQueue queue(context, devices[0]);
+
+    // Create an OpenCL program from the kernel source code
+    cl::Program::Sources sources;
+    sources.push_back({kernelSource, strlen(kernelSource)});
+    cl::Program program(context, sources);
+
+    // Build the OpenCL program
+    program.build(devices);
+
+    // Create the input and output arrays
+    vector<cl_double4> U(N);
+    for (int i = 0; i < N; i++)
+    {
+        U[i].x = 1.0;
+        U[i].y = 0.0;
+        U[i].z = 0.0;
+        U[i].w = 1.0;
+    }
+
+    // Create the OpenCL buffers
+    cl::Buffer bufU(context, CL_MEM_READ_WRITE, N*sizeof(cl_double4));
+
+    // Write the input data to the OpenCL buffers
+    queue.enqueueWriteBuffer(bufU, CL_TRUE, 0, N*sizeof(cl_double4), U.data());
+
+    // Create the OpenCL kernel
+    cl::Kernel kernel(program, "euler");
+
+    // Set the kernel arguments
+    kernel.setArg(0, bufU);
+    kernel.setArg(1, dx);
+    kernel.setArg(2, dy);
+    kernel.setArg(3, dz);
+    kernel.setArg(4, dt);
+    kernel.setArg(5, gamma);
+    kernel.setArg(6, Nx);
+    kernel.setArg(7, Ny);
+    kernel.setArg(8, Nz);
+
+    // Execute the kernel
+    int nSteps = tmax / dt;
+    for (int n = 0; n < nSteps; n++)
+    {
+        queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(Nx, Ny, Nz));
+    }
+
+    // Read the output data from the OpenCL buffers
+    queue.enqueueReadBuffer(bufU, CL_TRUE, 0, N*sizeof(cl_double4), U.data());
+
+    // Print the solution
+    cout << "Solution:\n";
+    for (int k = 0; k < Nz; k++)
+    {
+        for (int j = 0; j < Ny; j++)
+        {
+            for (int i = 0; i < Nx; i++)
+            {
+                int idx = i + j*Nx + k*Nx*Ny;
+                cout << "(" << U[idx].x << ", " << U[idx].y << ", " << U[idx].z << ", " << U[idx].w << ") ";
+            }
+            cout << "\n";
+        }
+        cout << "\n";
+    }
+}
+catch (cl::Error err)
+{
+    cerr << "OpenCL error: " << err.what() << " (" << err.err() << ")" << endl;
+    return 1;
+}
+
+return 0;
+
+}
+
