@@ -12,7 +12,7 @@ This is a simple CUDA interpretation of a FEA problem I studied in my bachelors.
 
 ### 2D_Navier_Stokes.cu
 
-This program generates the flow fields for a 2D Navier-Stokes governed flow. I suggest creating a function to read data from a file and then writing the results to other (Hint: #incclude <fstream>.
+This program generates the flow fields for a 2D Navier-Stokes governed flow. I suggest creating a function to read data from a file and then writing the results to other (Hint: #include <fstream>).
   
 ### 3D_Conduction_Heat_Transfer.cu
 
