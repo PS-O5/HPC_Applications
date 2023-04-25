@@ -36,7 +36,7 @@ FFT based on simple radix algorithm. I suggest use of other highly optimised lib
   
 Figure it out on your own!
   
-##pthreads
+## pthreads
   
 ### 3D_Conduction_Heat_Transfer_HOST_ONLY.cpp
 
