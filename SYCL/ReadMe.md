@@ -6,4 +6,4 @@ Install the required dependencies: You'll need to install the SYCL headers and t
 
 Compile the code: To compile the code, you'll need to specify the SYCL implementation's include and library paths, as well as the OpenCL library path. For example, if you're using ComputeCpp, you can compile the code with the following command:
 
-` compute++ -std=c++17 -I /path/to/computecpp/include -L /path/to/computecpp/lib -lComputeCpp -lOpenCL matrix_mul.cpp -o matrix_mul `
+` compute++ -std=c++17 -I /path/to/computecpp/include -L /path/to/computecpp/lib -lComputeCpp -lOpenCL Simple.cpp -o Simple `
