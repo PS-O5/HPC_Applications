@@ -40,4 +40,4 @@ Figure it out on your own!
   
 ### 3D_Conduction_Heat_Transfer_HOST_ONLY.cpp
 
-CPU optimised CUDA code for 3D Heat Conduction.  
+CPU optimised CUDA code for 3D Heat Conduction.
