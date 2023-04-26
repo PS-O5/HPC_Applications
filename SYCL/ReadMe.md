@@ -1,3 +1,5 @@
+I am currently learning and working on SYCL. Initially I used ComputeCpp but now I use DPC++ by Intel.
+
 Install a SYCL implementation: There are several SYCL implementations available, such as ComputeCpp and DPC++. You can follow the installation instructions provided by the implementation you choose.
 
 Install the required dependencies: You'll need to install the SYCL headers and the OpenCL headers, which are needed by some SYCL implementations. On Ubuntu, you can install them with the following command:
