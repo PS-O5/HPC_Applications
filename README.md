@@ -17,6 +17,10 @@ This program generates the flow fields for a 2D Navier-Stokes governed flow. I s
 ### 3D_Conduction_Heat_Transfer.cu
 
 Pretty much self explanatory. I recommend above hint.
+
+### Poissons_Equation.cu
+
+The code solves the Poisson equation using the Jacobi iterative method on a 2D grid. The code assumes a Dirichlet boundary condition, where the potential is specified on the boundary of the domain. The Jacobi method updates each point in the grid using a weighted average of its neighbors, and repeats this process until the solution converges to a specified tolerance or a maximum number of iterations is reached.
   
 ## OpenCL
   
