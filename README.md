@@ -10,9 +10,9 @@ Some snippets/code might be absent/faulty due to the reasons of licensing/trade-
 
 This is a simple CUDA interpretation of a FEA problem I studied in my bachelors. The reference can be found [here.](http://rip.eng.hawaii.edu/wp-content/uploads/2020/11/me481-femfeaBoundaryConditionsFailureAnalysis-2020f.pdf)
 
-### 2D_Navier_Stokes.cu
+### 3D_Navier_Stokes.cu
 
-This program generates the flow fields for a 2D Navier-Stokes governed flow. I suggest creating a function to read data from a file and then writing the results to other (Hint: #include fstream).
+Euler's equation for incompressible, inviscid, isotropic fluid using the Finite Difference Method. I suggest creating a function to read data from a file and then writing the results to other (Hint: #include fstream).
   
 ### 3D_Conduction_Heat_Transfer.cu
 
